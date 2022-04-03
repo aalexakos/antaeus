@@ -13,6 +13,7 @@ import io.pleo.antaeus.models.Invoice
 import io.pleo.antaeus.models.InvoiceStatus
 import io.pleo.antaeus.models.Money
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.selectAll
@@ -79,5 +80,13 @@ class AntaeusDal(private val db: Database) {
         }
 
         return fetchCustomer(id)
+    }
+
+    fun fetchUnpaidInvoices(): List<Invoice> {
+        return transaction(db) {
+            InvoiceTable
+            .select { InvoiceTable.status.eq("PENDING") }
+            .map { it.toInvoice() }
+        }
     }
 }
