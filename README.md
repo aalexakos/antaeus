@@ -86,3 +86,36 @@ The code given is structured as follows. Feel free however to modify the structu
 * [Sqlite3](https://sqlite.org/index.html) - Database storage engine
 
 Happy hacking 😁!
+
+
+## Challenge Execution 
+
+### Introduction 
+The main idea of this hand over, is that invoices will be "sent" to customers periodically every 1st of the month. In this example, the "sent operation" will be just a print of the invoices with status "PENDING".
+In a real world scenario, instead of just a print, the "PENDING" invoices would be sent to each customer through their e-mail. 
+Thus, the additions to the existing code, is a new endpoint that returns the "PENDING" invoices and also a modification to the Dockerfile to add a **Cron Job** for monthly scheduling.
+
+### Endpoint and Database
+The new endpoint's URL is: _/rest/v1/invoices/payment_. This endpoint will be mainly used by the monthly scheduler 
+to print the pending invoices. Beside this endpoint, a few others were created as alternatives for different working cases.
+This cases can be, for example, checking if an invoice status has value "PAID" or "PENDING" (_/rest/v1/invoices/payment/{:id}_).
+Or an other case, to get all the invoices for a customer (_/rest/v1/invoices/payment/{:id}_). 
+All the above new endpoints may come with new database transactions. In the endpoint that is used for the scheduler, a new transaction was added:
+```
+fun fetchUnpaidInvoices(): List<Invoice> {
+    return transaction(db) {
+        InvoiceTable
+        .select { InvoiceTable.status.eq("PENDING") }
+        .map { it.toInvoice() }
+    }
+}
+```
+### Scheduler 
+The main idea behind the scheduler is that the webapp will run in a docker container. In the same container, a **Cron Job** will be executing 
+a monthly API REST call to the endpoint that was created before.
+
+Files:
+* curl.sh: contains the curl request,
+* cron-job: describes the Cron Job execution period and points to the _curl.sh_ for the code to be executed
+
+Note: Current Cron Job is set to run every 1 minute, just for testing purposes. For execution every month on the last day of the month, at noon (:P), change cron-job file to contain **0 0 12 L * ?**.

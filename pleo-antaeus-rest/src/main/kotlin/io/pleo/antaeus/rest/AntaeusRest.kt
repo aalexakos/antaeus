@@ -65,7 +65,6 @@ class AntaeusRest(
                         // URL: /rest/v1/invoices/payment
                         path ("payment") {
                             get {
-                                it.result("hi from payments")
                                 val invoices: List<Invoice> = invoiceService.pay()
                                 it.json(invoices)
                             }
