@@ -96,11 +96,11 @@ In a real world scenario, instead of just a print, the "PENDING" invoices would 
 Thus, the additions to the existing code, is a new endpoint that returns the "PENDING" invoices and also a modification to the Dockerfile to add a **Cron Job** for monthly scheduling.
 
 ### Endpoint and Database
-The new endpoint's URL is: _/rest/v1/invoices/payment_. This endpoint will be mainly used by the monthly scheduler 
-to print the pending invoices. Beside this endpoint, a few others were created as alternatives for different working cases.
-This cases can be, for example, checking if an invoice status has value "PAID" or "PENDING" (_/rest/v1/invoices/payment/{:id}_).
-Or an other case, to get all the invoices for a customer (_/rest/v1/invoices/payment/{:id}_). 
-All the above new endpoints may come with new database transactions. In the endpoint that is used for the scheduler, a new transaction was added:
+The new endpoint's URL is: _/rest/v1/invoices/payment_. This endpoint will be used by the monthly scheduler 
+to print the pending invoices. Beside this endpoint, a few others were created as alternatives for different case scenarios.
+These scenarios include, checking if an invoice status has value "PAID" or "PENDING" status (_/rest/v1/invoices/payment/{:id}_),
+or getting all the invoices for a customer (_/rest/v1/invoices/payment/{:id}_). 
+All the above new endpoints may come with new database transactions. In the main endpoint that is used for the scheduler, a new transaction was added:
 ```
 fun fetchUnpaidInvoices(): List<Invoice> {
     return transaction(db) {
@@ -111,11 +111,26 @@ fun fetchUnpaidInvoices(): List<Invoice> {
 }
 ```
 ### Scheduler 
-The main idea behind the scheduler is that the webapp will run in a docker container. In the same container, a **Cron Job** will be executing 
-a monthly API REST call to the endpoint that was created before.
+The working idea of the scheduler is that the webapp will run in a docker container along with a shell script that will 
+run a **Cron Job**. This Cron Job will execute a monthly API REST call to the endpoint that was described above.
 
+### Short description of the new docker files
 Files:
 * curl.sh: contains the curl request,
 * cron-job: describes the Cron Job execution period and points to the _curl.sh_ for the code to be executed
+* Dockerfile: added a few lines that initiate the _cron-job_ file when the docker container starts
 
 Note: Current Cron Job is set to run every 1 minute, just for testing purposes. For execution every month on the last day of the month, at noon (:P), change cron-job file to contain **0 0 12 L * ?**.
+
+## Time spent for the Challenge
+Spent the first two days to investigate the challenge and also read about Javelin and SQLite, 
+which i had no previous experience with. I did that while working on my daytime job, so it wasn't 
+two full days of investigating.
+
+After that it took me two more full days to develop the code.
+At the beginning, the first thing i tried, it was to run the 
+app in AWS and schedule the payment through AWS Lambda. 
+Eventually, after investigating the choices i had with Docker, i ended up working with it since
+it was already configured to work with Antaeus.
+
+Finally, i spent another day to review the code and do some fixes. 
