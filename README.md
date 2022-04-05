@@ -145,6 +145,28 @@ The purpose of this test is to simulate the payment process. For this case the _
 will return _false_, meaning that bank transaction did not go through. Thus, it is returned
 _NetworkException()_.
 
+### Run the App
+To run the app simply execute the following to run _natively_:
+```
+./gradlew build
+./gradlew run
+```
+and to run in _Docker_:
+```
+docker build -t antaeus
+docker run antaeus
+```
+By running in Docker, the scheduler will start automatically. As said before, for the purposes of this
+test, it set to trigger every minute (instead of once a month).
+
+To call the url for the payments use this command:
+```
+curl --location --request GET 'localhost:7000/rest/v1/invoices/1/payment'
+```
+either inside the container if run in Docker, or in regular terminal if run natively.\
+Note: this call might give an NetworkException() since charge() function is not full implemented. For better 
+testing please use the unit tests.
+
 ## Time spent for the Challenge
 Spent the first two days to investigate the challenge and also read about Javelin and SQLite, 
 which i had no previous experience with. I did that while working on my daytime job, so it wasn't 
