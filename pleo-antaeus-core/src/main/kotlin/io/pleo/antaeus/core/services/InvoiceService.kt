@@ -22,13 +22,12 @@ class InvoiceService(private val dal: AntaeusDal, private val paymentProvider: P
         return dal.fetchUnpaidInvoices()
     }
 
-    fun payInvoice(id: Int): Invoice? {
-        val invoice: Invoice? = dal.fetchInvoice(id)
-
-        if (invoice?.let { paymentProvider.charge(it) } == true) else {
-            throw InvoiceNotFoundException(invoice!!.id)
+    fun payInvoice(id: Int): Invoice {
+        val invoice: Invoice = dal.fetchInvoice(id)!!
+        if (!invoice.let { paymentProvider.charge(it) }) {
+            throw InvoiceNotFoundException(invoice.id)
         }
-        dal.setPaidStatus(invoice!!.id)
-        return dal.fetchInvoice(id)
+        dal.setPaidStatus(invoice.id)
+        return dal.fetchInvoice(id)!!
     }
 }

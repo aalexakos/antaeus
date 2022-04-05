@@ -3,6 +3,7 @@ package io.pleo.antaeus.core.services
 import io.mockk.MockK
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.spyk
 import io.pleo.antaeus.core.exceptions.InvoiceNotFoundException
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.data.AntaeusDal
@@ -16,13 +17,11 @@ import org.junit.jupiter.api.Assertions.*
 
 
 class InvoiceServiceTest {
-    private val dal = mockk<AntaeusDal> {
-        every { fetchInvoice(404) } returns null
-    }
+    private val dal = mockk<AntaeusDal>()
 
-    private var paymentProvider: PaymentProvider? = null
+    private var paymentProvider = spyk<PaymentProvider>()
 
-    private var invoiceService = paymentProvider?.let { InvoiceService(dal = dal, paymentProvider = it) }
+    private var invoiceService = InvoiceService(dal = dal, paymentProvider = paymentProvider)
 
     private lateinit var pendingInvoice: Invoice
     private lateinit var paidInvoice: Invoice
@@ -55,19 +54,34 @@ class InvoiceServiceTest {
 
     @Test
     fun `will throw if invoice is not found`() {
+        every { dal.fetchInvoice(404) } returns null
+        every { paymentProvider.charge(pendingInvoice) } returns true
         assertThrows<InvoiceNotFoundException> {
-            invoiceService?.fetch(404)
+            invoiceService.fetch(404)
         }
     }
 
+    //Test that modifies the invoice status from PENDING to PAID
     @Test
     fun payInvoiceTest() {
-        paymentProvider = mockk{
-            every { charge(pendingInvoice) } returns true
-        }
+        every { paymentProvider.charge(pendingInvoice) } returns true
+
         invoiceService = mockk()
-        every { invoiceService!!.payInvoice(pendingInvoice.id) } returns paidInvoice
-        val paidInvoice: Invoice? = invoiceService?.payInvoice(pendingInvoice.id)
+        every { invoiceService.payInvoice(pendingInvoice.id) } returns paidInvoice
+        val paidInvoice: Invoice? = invoiceService.payInvoice(pendingInvoice.id)
         assertEquals("PAID", paidInvoice?.status.toString())
+    }
+
+    //Test that modifies the invoice status from PENDING to PAID but charge function fails
+    @Test
+    fun payInvoiceTestAndChargeFails() {
+        every { paymentProvider.charge(pendingInvoice) } returns false
+        every { paymentProvider.charge(paidInvoice) } returns false
+
+        every { dal.fetchInvoice(pendingInvoice.id) } returns pendingInvoice
+
+        assertThrows<InvoiceNotFoundException> {
+            invoiceService.payInvoice(pendingInvoice.id)
+        }
     }
 }
