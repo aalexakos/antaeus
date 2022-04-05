@@ -5,6 +5,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.pleo.antaeus.core.exceptions.InvoiceNotFoundException
+import io.pleo.antaeus.core.exceptions.NetworkException
 import io.pleo.antaeus.core.external.PaymentProvider
 import io.pleo.antaeus.data.AntaeusDal
 import io.pleo.antaeus.models.Currency
@@ -76,11 +77,10 @@ class InvoiceServiceTest {
     @Test
     fun payInvoiceTestAndChargeFails() {
         every { paymentProvider.charge(pendingInvoice) } returns false
-        every { paymentProvider.charge(paidInvoice) } returns false
 
         every { dal.fetchInvoice(pendingInvoice.id) } returns pendingInvoice
 
-        assertThrows<InvoiceNotFoundException> {
+        assertThrows<NetworkException> {
             invoiceService.payInvoice(pendingInvoice.id)
         }
     }

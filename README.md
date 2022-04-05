@@ -91,16 +91,24 @@ Happy hacking 😁!
 ## Challenge Execution 
 
 ### Introduction 
-The main idea of this hand over, is that invoices will be "sent" to customers periodically every 1st of the month. In this example, the "sent operation" will be just a print of the invoices with status "PENDING".
-In a real world scenario, instead of just a print, the "PENDING" invoices would be sent to each customer through their e-mail. 
-Thus, the additions to the existing code, is a new endpoint that returns the "PENDING" invoices and also a modification to the Dockerfile to add a **Cron Job** for monthly scheduling.
+The main idea of this hand over, is that invoices will be "sent" to customers periodically every 1st of the month. 
+In this example, the "sent operation" will be just a print of the invoices with status "PENDING".
+In a real world scenario, instead of just a print, the "PENDING" invoices would be sent to each customer through their e-mail.
+After sending the invoices, the customer needs to pay his invoice, by calling the proper api (see Endpoint and Database section).
+Thus, the additions to the existing code, is a new endpoint that returns the "PENDING" invoices and an API for paying a specific
+invoice. Also, a modification to the Dockerfile to add a **Cron Job** for monthly scheduling.
 
 ### Endpoint and Database
-The new endpoint's URL is: _/rest/v1/invoices/payment_. This endpoint will be used by the monthly scheduler 
-to print the pending invoices. Beside this endpoint, a few others were created as alternatives for different case scenarios.
-These scenarios include, checking if an invoice status has value "PAID" or "PENDING" status (_/rest/v1/invoices/payment/{:id}_),
-or getting all the invoices for a customer (_/rest/v1/invoices/payment/{:id}_). 
-All the above new endpoints may come with new database transactions. In the main endpoint that is used for the scheduler, a new transaction was added:
+The first endpoint's URL is: _GET /rest/v1/invoices/payment_. This endpoint will be used by the monthly scheduler 
+to print the pending invoices. 
+
+The second endpoint's URL is: _GET /rest/v1/invoices/{:id}/payment_. As said before,
+the purpose for this API is to pay the invoice with the provided id. For this operation to be completed, the charge() function
+from PaymentProvider Interface is used. For this challenge the charge functions was left empty, but some mocking was done in the 
+tests section. The mocking includes two scenarios: 1) charge from bank account is successful, and 2) charge fails.
+
+All the above new endpoints may come with new database transactions. In the main endpoint that is used for the scheduler, 
+a new transaction was added:
 ```
 fun fetchUnpaidInvoices(): List<Invoice> {
     return transaction(db) {
@@ -120,7 +128,22 @@ Files:
 * cron-job: describes the Cron Job execution period and points to the _curl.sh_ for the code to be executed
 * Dockerfile: added a few lines that initiate the _cron-job_ file when the docker container starts
 
-Note: Current Cron Job is set to run every 1 minute, just for testing purposes. For execution every month on the last day of the month, at noon (:P), change cron-job file to contain **0 0 12 L * ?**.
+Note: Current Cron Job is set to run every 1 minute, just for testing purposes. 
+For execution every month on the last day of the month, at noon (:P), change cron-job file to contain **0 0 12 L * ?**.
+
+### Tests
+Beside the main monthly scheduler that is very easy to be tested by just running the app on Docker, 
+two other tests were created. These test are about the invoices, thus they were created in
+**InvoiceServiceTest** file.
+
+_payInvoiceTest_\
+The purpose of this test is to simulate the payment process. For this case the _charge()_ function
+will return _true_, meaning that bank transaction was successful. 
+
+_payInvoiceTestAndChargeFails_\
+The purpose of this test is to simulate the payment process. For this case the _charge()_ function
+will return _false_, meaning that bank transaction did not go through. Thus, it is returned
+_NetworkException()_.
 
 ## Time spent for the Challenge
 Spent the first two days to investigate the challenge and also read about Javelin and SQLite, 
@@ -133,4 +156,4 @@ app in AWS and schedule the payment through AWS Lambda.
 Eventually, after investigating the choices i had with Docker, i ended up working with it since
 it was already configured to work with Antaeus.
 
-Finally, i spent another day to review the code and do some fixes. 
+Finally, i spent another day to write some tests, review the code and do some fixes. 
