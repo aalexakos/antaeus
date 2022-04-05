@@ -86,3 +86,96 @@ The code given is structured as follows. Feel free however to modify the structu
 * [Sqlite3](https://sqlite.org/index.html) - Database storage engine
 
 Happy hacking 😁!
+
+
+## Challenge Execution 
+
+### Introduction 
+The main idea of this hand over, is that invoices will be "sent" to customers periodically every 1st of the month. 
+In this example, the "sent operation" will be just a print of the invoices with status "PENDING".
+In a real world scenario, instead of just a print, the "PENDING" invoices would be sent to each customer through their e-mail.
+After sending the invoices, the customer needs to pay his invoice, by calling the proper api (see Endpoint and Database section).
+Thus, the additions to the existing code, is a new endpoint that returns the "PENDING" invoices and an API for paying a specific
+invoice. Also, a modification to the Dockerfile to add a **Cron Job** for monthly scheduling.
+
+### Endpoint and Database
+The first endpoint's URL is: _GET /rest/v1/invoices/payment_. This endpoint will be used by the monthly scheduler 
+to print the pending invoices. 
+
+The second endpoint's URL is: _GET /rest/v1/invoices/{:id}/payment_. As said before,
+the purpose for this API is to pay the invoice with the provided id. For this operation to be completed, the charge() function
+from PaymentProvider Interface is used. For this challenge the charge functions was left empty, but some mocking was done in the 
+tests section. The mocking includes two scenarios: 1) charge from bank account is successful, and 2) charge fails.
+
+All the above new endpoints may come with new database transactions. In the main endpoint that is used for the scheduler, 
+a new transaction was added:
+```
+fun fetchUnpaidInvoices(): List<Invoice> {
+    return transaction(db) {
+        InvoiceTable
+        .select { InvoiceTable.status.eq("PENDING") }
+        .map { it.toInvoice() }
+    }
+}
+```
+### Scheduler 
+The working idea of the scheduler is that the webapp will run in a docker container along with a shell script that will 
+run a **Cron Job**. This Cron Job will execute a monthly API REST call to the endpoint that was described above.
+
+### Short description of the new docker files
+Files:
+* curl.sh: contains the curl request,
+* cron-job: describes the Cron Job execution period and points to the _curl.sh_ for the code to be executed
+* Dockerfile: added a few lines that initiate the _cron-job_ file when the docker container starts
+
+Note: Current Cron Job is set to run every 1 minute, just for testing purposes. 
+For execution every month on the last day of the month, at noon (:P), change cron-job file to contain **0 0 12 L * ?**.
+
+### Tests
+Beside the main monthly scheduler that is very easy to be tested by just running the app on Docker, 
+two other tests were created. These test are about the invoices, thus they were created in
+**InvoiceServiceTest** file.
+
+_payInvoiceTest_\
+The purpose of this test is to simulate the payment process. For this case the _charge()_ function
+will return _true_, meaning that bank transaction was successful. 
+
+_payInvoiceTestAndChargeFails_\
+The purpose of this test is to simulate the payment process. For this case the _charge()_ function
+will return _false_, meaning that bank transaction did not go through. Thus, it is returned
+_NetworkException()_.
+
+### Run the App
+To run the app simply execute the following to run _natively_:
+```
+./gradlew build
+./gradlew run
+```
+and to run in _Docker_:
+```
+docker build -t antaeus
+docker run antaeus
+```
+By running in Docker, the scheduler will start automatically. As said before, for the purposes of this
+test, it set to trigger every minute (instead of once a month).
+
+To call the url for the payments use this command:
+```
+curl --location --request GET 'localhost:7000/rest/v1/invoices/1/payment'
+```
+either inside the container if run in Docker, or in regular terminal if run natively.\
+Note: this call might give an NetworkException() since charge() function is not full implemented. For better 
+testing please use the unit tests.
+
+## Time spent for the Challenge
+Spent the first two days to investigate the challenge and also read about Javelin and SQLite, 
+which i had no previous experience with. I did that while working on my daytime job, so it wasn't 
+two full days of investigating.
+
+After that it took me two more full days to develop the code.
+At the beginning, the first thing i tried, it was to run the 
+app in AWS and schedule the payment through AWS Lambda. 
+Eventually, after investigating the choices i had with Docker, i ended up working with it since
+it was already configured to work with Antaeus.
+
+Finally, i spent another day to write some tests, review the code and do some fixes. 
